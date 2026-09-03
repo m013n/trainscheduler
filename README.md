@@ -15,6 +15,10 @@ A desktop scheduler for organizing a seven-day alliance train. Assign one R4/R5 
 - Export and import data as JSON
 - Load a sample alliance roster for quick setup
 
+## Screenshots
+
+![Alliance Train Scheduler with a sample roster loaded](docs/screenshots/scheduler-populated.png)
+
 ## Requirements
 
 - Node.js 18 or newer
