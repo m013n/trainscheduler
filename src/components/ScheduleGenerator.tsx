@@ -54,7 +54,7 @@ export const ScheduleGenerator: React.FC<ScheduleGeneratorProps> = ({
 
   // Generate plain text formatted string with selected week date range header
   const generateScheduleText = (): string => {
-    const header = `${currentWeekInfo.formattedRange}\n`;
+    const header = `Train Schedule ${currentWeekInfo.formattedRange}\n`;
     const lines = schedule.map((day) => {
       const conductor = day.conductorId ? membersMap.get(day.conductorId) : null;
       let passengerName = 'None';
@@ -68,7 +68,8 @@ export const ScheduleGenerator: React.FC<ScheduleGeneratorProps> = ({
       }
       const conductorName = conductor ? conductor.name : 'None';
       const dayName = getDayName(day.dayNumber);
-      return `${dayName}: ${conductorName} - ${passengerName}`;
+      const noteSuffix = day.notes?.trim() ? ` (${day.notes.trim()})` : '';
+      return `${dayName}: ${conductorName} - ${passengerName}${noteSuffix}`;
     });
 
     return `${header}${lines.join('\n')}`;

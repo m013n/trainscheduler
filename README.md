@@ -9,9 +9,9 @@ A desktop scheduler for organizing a seven-day alliance train. Assign one R4/R5 
 - Maintain conductor ordering for the schedule
 - Assign conductors and passengers across seven days
 - Use `Roll the dice` and `Nomination` passenger placeholders
-- Browse schedules by week
+- Browse independent schedules by week, with each week kept in history
 - Generate a formatted weekly schedule and copy it to the clipboard
-- Automatically save roster, bookmarks, and schedule data
+- Automatically save roster, bookmarks, and all weekly schedule history
 - Export and import data as JSON
 - Load a sample alliance roster for quick setup
 
@@ -77,7 +77,9 @@ R4 and R5 members can fill conductor slots. R1, R2, and R3 members can fill pass
 
 In the packaged Electron app, data is saved automatically to the Electron user-data directory as `train-scheduler-data.json`. In a browser-only development context, the app uses `localStorage` with the key `alliance_train_scheduler_data`.
 
-Use `Export` in the header to create a JSON backup. Use `Import` to merge a backup into the current roster and schedule. Existing members are matched by trimmed, case-insensitive name to avoid duplicates.
+Use `Export` in the header to create a JSON backup. Backups include every saved weekly schedule and the last-used week. Use `Import` to merge a backup into the current roster and schedule history; imported records replace schedules with matching calendar weeks, while other weeks are retained. Existing members are matched by trimmed, case-insensitive name to avoid duplicates.
+
+Schedules are stored by the Monday date of each calendar week. The app reopens the last-used week and keeps history indefinitely. Older backups that contain only one `schedule` are migrated into the active week automatically when loaded or imported.
 
 ## Project Structure
 

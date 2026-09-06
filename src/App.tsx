@@ -1,11 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Member, MemberLevel, Bookmarks, DaySchedule, AppData, ListCategory } from './types';
+import {
+  Member,
+  MemberLevel,
+  Bookmarks,
+  DaySchedule,
+  AppData,
+  ListCategory,
+  ScheduleHistory,
+  getWeekKey,
+  getWeekOffsetFromKey,
+} from './types';
 import { loadAppData, saveAppData, DEFAULT_SCHEDULE, exportAppDataToFile, mergeImportedData } from './services/storage';
 import { Header } from './components/Header';
 import { MemberToolbar } from './components/MemberToolbar';
 import { MemberListBoxes } from './components/MemberListBoxes';
 import { ScheduleGrid } from './components/ScheduleGrid';
 import { ScheduleGenerator } from './components/ScheduleGenerator';
+import { PriorWeeksPreview } from './components/PriorWeeksPreview';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const SAMPLE_MEMBERS: Array<{ name: string; level: MemberLevel }> = [
   { name: 'Arthur Pendragon', level: 'r5' },
@@ -39,10 +51,13 @@ export const App: React.FC = () => {
     r1: null,
   });
   const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
+  const [scheduleHistory, setScheduleHistory] = useState<ScheduleHistory>({});
+  const [activeWeekKey, setActiveWeekKey] = useState(getWeekKey(1));
   
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(1);
   const [weekOffset, setWeekOffset] = useState<number>(1); // Default to future / next week
+  const [showPriorWeeks, setShowPriorWeeks] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -51,6 +66,9 @@ export const App: React.FC = () => {
       setConductorOrder(data.conductorOrder);
       setBookmarks(data.bookmarks);
       setSchedule(data.schedule);
+      setScheduleHistory(data.scheduleHistory);
+      setActiveWeekKey(data.activeWeekKey);
+      setWeekOffset(getWeekOffsetFromKey(data.activeWeekKey) ?? 1);
       setDataLoaded(true);
     });
   }, []);
@@ -63,9 +81,29 @@ export const App: React.FC = () => {
       conductorOrder,
       bookmarks,
       schedule,
+      scheduleHistory,
+      activeWeekKey,
     };
     saveAppData(currentData);
-  }, [members, conductorOrder, bookmarks, schedule, dataLoaded]);
+  }, [members, conductorOrder, bookmarks, schedule, scheduleHistory, activeWeekKey, dataLoaded]);
+
+  const updateActiveSchedule = (updater: (previous: DaySchedule[]) => DaySchedule[]) => {
+    setSchedule((previous) => {
+      const updated = updater(previous);
+      setScheduleHistory((history) => ({ ...history, [activeWeekKey]: updated }));
+      return updated;
+    });
+  };
+
+  const handleWeekOffsetChange = (offset: number) => {
+    const nextWeekKey = getWeekKey(offset);
+    setWeekOffset(offset);
+    setActiveWeekKey(nextWeekKey);
+    setSchedule(scheduleHistory[nextWeekKey] || DEFAULT_SCHEDULE);
+    setScheduleHistory((history) => history[nextWeekKey]
+      ? history
+      : { ...history, [nextWeekKey]: DEFAULT_SCHEDULE });
+  };
 
   // Map for fast lookups
   const membersMap = useMemo(() => {
@@ -150,6 +188,18 @@ export const App: React.FC = () => {
     });
 
     // Check if schedule slot assignments are invalidated by rank change
+    setScheduleHistory((history) => {
+      const updatedHistory: ScheduleHistory = {};
+      for (const [weekKey, weeklySchedule] of Object.entries(history)) {
+        updatedHistory[weekKey] = weeklySchedule.map((day) => {
+          let { conductorId, passengerId } = day;
+          if (conductorId === memberId && !willBeConductor) conductorId = null;
+          if (passengerId === memberId && willBeConductor) passengerId = null;
+          return { ...day, conductorId, passengerId };
+        });
+      }
+      return updatedHistory;
+    });
     setSchedule((prev) =>
       prev.map((day) => {
         let { conductorId, passengerId } = day;
@@ -188,13 +238,21 @@ export const App: React.FC = () => {
     });
 
     // Clear from schedule if present
-    setSchedule((prev) =>
-      prev.map((day) => ({
-        ...day,
-        conductorId: day.conductorId === memberId ? null : day.conductorId,
-        passengerId: day.passengerId === memberId ? null : day.passengerId,
-      }))
-    );
+    setScheduleHistory((history) => Object.fromEntries(
+      Object.entries(history).map(([weekKey, weeklySchedule]) => [
+        weekKey,
+        weeklySchedule.map((day) => ({
+          ...day,
+          conductorId: day.conductorId === memberId ? null : day.conductorId,
+          passengerId: day.passengerId === memberId ? null : day.passengerId,
+        })),
+      ])
+    ));
+    setSchedule((prev) => prev.map((day) => ({
+      ...day,
+      conductorId: day.conductorId === memberId ? null : day.conductorId,
+      passengerId: day.passengerId === memberId ? null : day.passengerId,
+    })));
 
     if (selectedMemberId === memberId) {
       setSelectedMemberId(null);
@@ -249,7 +307,7 @@ export const App: React.FC = () => {
 
     const isConductor = selectedMember.level === 'r4' || selectedMember.level === 'r5';
 
-    setSchedule((prev) =>
+    updateActiveSchedule((prev) =>
       prev.map((day) => {
         if (day.dayNumber === selectedDayNumber) {
           if (isConductor) {
@@ -269,7 +327,7 @@ export const App: React.FC = () => {
 
   // Set placeholder for passenger slot
   const handleSetPlaceholder = (placeholderType: string) => {
-    setSchedule((prev) =>
+    updateActiveSchedule((prev) =>
       prev.map((day) => {
         if (day.dayNumber === selectedDayNumber) {
           return { ...day, passengerId: placeholderType };
@@ -285,7 +343,7 @@ export const App: React.FC = () => {
 
   // Remove single slot
   const handleRemoveSlot = (dayNumber: number, slotType: 'conductor' | 'passenger') => {
-    setSchedule((prev) =>
+    updateActiveSchedule((prev) =>
       prev.map((day) => {
         if (day.dayNumber === dayNumber) {
           return {
@@ -298,12 +356,23 @@ export const App: React.FC = () => {
     );
   };
 
-  // Clear single day
-  const handleClearDay = (dayNumber: number) => {
-    setSchedule((prev) =>
+  // Update day notes
+  const handleUpdateNotes = (dayNumber: number, notes: string) => {
+    updateActiveSchedule((prev) =>
       prev.map((day) =>
         day.dayNumber === dayNumber
-          ? { ...day, conductorId: null, passengerId: null }
+          ? { ...day, notes }
+          : day
+      )
+    );
+  };
+
+  // Clear single day
+  const handleClearDay = (dayNumber: number) => {
+    updateActiveSchedule((prev) =>
+      prev.map((day) =>
+        day.dayNumber === dayNumber
+          ? { ...day, conductorId: null, passengerId: null, notes: '' }
           : day
       )
     );
@@ -311,7 +380,7 @@ export const App: React.FC = () => {
 
   // Clear entire schedule
   const handleClearAllSchedule = () => {
-    setSchedule(DEFAULT_SCHEDULE);
+    updateActiveSchedule(() => DEFAULT_SCHEDULE);
   };
 
   // Load sample roster
@@ -335,7 +404,7 @@ export const App: React.FC = () => {
       r2: loadedMembers.find((m) => m.level === 'r2')?.id || null,
       r1: loadedMembers.find((m) => m.level === 'r1')?.id || null,
     });
-    setSchedule(DEFAULT_SCHEDULE);
+    updateActiveSchedule(() => DEFAULT_SCHEDULE);
   };
 
   // Reset all
@@ -349,6 +418,7 @@ export const App: React.FC = () => {
       r1: null,
     });
     setSchedule(DEFAULT_SCHEDULE);
+    setScheduleHistory({ [activeWeekKey]: DEFAULT_SCHEDULE });
     setSelectedMemberId(null);
   };
 
@@ -359,6 +429,8 @@ export const App: React.FC = () => {
       conductorOrder,
       bookmarks,
       schedule,
+      scheduleHistory,
+      activeWeekKey,
     };
     exportAppDataToFile(currentData);
   };
@@ -383,6 +455,8 @@ export const App: React.FC = () => {
           conductorOrder,
           bookmarks,
           schedule,
+          scheduleHistory,
+          activeWeekKey,
         };
 
         const result = mergeImportedData(currentData, parsed);
@@ -391,6 +465,9 @@ export const App: React.FC = () => {
           setConductorOrder(result.appData.conductorOrder);
           setBookmarks(result.appData.bookmarks);
           setSchedule(result.appData.schedule);
+          setScheduleHistory(result.appData.scheduleHistory);
+          setActiveWeekKey(result.appData.activeWeekKey);
+          setWeekOffset(getWeekOffsetFromKey(result.appData.activeWeekKey) ?? 1);
           alert(
             `Import successful!\n• ${result.stats?.added ?? 0} new member(s) added\n• ${result.stats?.updated ?? 0} member rank(s) updated\n• Total members: ${result.stats?.total ?? result.appData.members.length}`
           );
@@ -444,7 +521,7 @@ export const App: React.FC = () => {
           selectedMember={selectedMember}
           selectedDayNumber={selectedDayNumber}
           weekOffset={weekOffset}
-          onWeekOffsetChange={setWeekOffset}
+          onWeekOffsetChange={handleWeekOffsetChange}
           onAllAboard={handleAllAboard}
           onSetPlaceholder={handleSetPlaceholder}
           onSelectDay={setSelectedDayNumber}
@@ -460,7 +537,25 @@ export const App: React.FC = () => {
           onRemoveSlot={handleRemoveSlot}
           onClearDay={handleClearDay}
           onClearAll={handleClearAllSchedule}
+          onUpdateNotes={handleUpdateNotes}
         />
+
+        {/* Previous Weeks Toggle & Preview */}
+        <button
+          type="button"
+          onClick={() => setShowPriorWeeks((prev) => !prev)}
+          className="self-start flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
+        >
+          {showPriorWeeks ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {showPriorWeeks ? 'Hide previous weeks' : 'Show previous weeks'}
+        </button>
+        {showPriorWeeks && (
+          <PriorWeeksPreview
+            weekOffset={weekOffset}
+            scheduleHistory={scheduleHistory}
+            membersMap={membersMap}
+          />
+        )}
       </main>
     </div>
   );

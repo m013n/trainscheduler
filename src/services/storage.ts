@@ -1,4 +1,12 @@
-import { AppData, DaySchedule, Member } from '../types';
+import {
+  AppData,
+  DaySchedule,
+  Member,
+  ScheduleHistory,
+  getWeekKey,
+  PLACEHOLDER_NOMINATION,
+  PLACEHOLDER_ROLL_DICE,
+} from '../types';
 
 const STORAGE_KEY = 'alliance_train_scheduler_data';
 
@@ -6,6 +14,7 @@ export const DEFAULT_SCHEDULE: DaySchedule[] = Array.from({ length: 7 }, (_, i) 
   dayNumber: i + 1,
   conductorId: null,
   passengerId: null,
+  notes: '',
 }));
 
 export const DEFAULT_APP_DATA: AppData = {
@@ -18,6 +27,10 @@ export const DEFAULT_APP_DATA: AppData = {
     r1: null,
   },
   schedule: DEFAULT_SCHEDULE,
+  scheduleHistory: {
+    [getWeekKey(1)]: DEFAULT_SCHEDULE,
+  },
+  activeWeekKey: getWeekKey(1),
 };
 
 export async function loadAppData(): Promise<AppData> {
@@ -206,13 +219,13 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
       r1: remapBookmark(importedBookmarks.r1, 'r1') || currentData.bookmarks.r1 || null,
     };
 
-    // Schedule: if imported has filled schedule, remap its member IDs; otherwise retain current
-    let finalSchedule: DaySchedule[] = currentData.schedule;
-    if (Array.isArray(importedObj.schedule) && importedObj.schedule.length > 0) {
-      finalSchedule = Array.from({ length: 7 }, (_, i) => {
+    const remapSchedule = (rawSchedule: unknown, fallbackSchedule: DaySchedule[]): DaySchedule[] => {
+      return Array.from({ length: 7 }, (_, i) => {
         const dayNum = i + 1;
-        const importedDay = importedObj.schedule!.find((s) => s.dayNumber === dayNum);
-        const currentDay = currentData.schedule.find((s) => s.dayNumber === dayNum);
+        const importedDay = Array.isArray(rawSchedule)
+          ? rawSchedule.find((s): s is DaySchedule => !!s && typeof s === 'object' && s.dayNumber === dayNum)
+          : null;
+        const currentDay = fallbackSchedule.find((s) => s.dayNumber === dayNum);
 
         let conductorId: string | null = null;
         let passengerId: string | null = null;
@@ -228,7 +241,7 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
 
         const rawP = importedDay?.passengerId || currentDay?.passengerId || null;
         if (rawP) {
-          if (rawP === '__PLACEHOLDER_ROLL_THE_DICE__' || rawP === '__PLACEHOLDER_NOMINATION__') {
+          if (rawP === PLACEHOLDER_ROLL_DICE || rawP === PLACEHOLDER_NOMINATION) {
             passengerId = rawP;
           } else {
             const canonicalP = idRemap.get(rawP) || rawP;
@@ -239,12 +252,31 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
           }
         }
 
+        const rawNotes = importedDay?.notes !== undefined ? importedDay.notes : (currentDay?.notes || '');
+
         return {
           dayNumber: dayNum,
           conductorId,
           passengerId,
+          notes: typeof rawNotes === 'string' ? rawNotes : '',
         };
       });
+    };
+
+    // Imported schedules replace matching weeks and remap member IDs to canonical IDs.
+    let finalSchedule: DaySchedule[] = currentData.schedule;
+    if (Array.isArray(importedObj.schedule) && importedObj.schedule.length > 0) {
+      finalSchedule = remapSchedule(importedObj.schedule, currentData.schedule);
+    }
+
+    const mergedHistory: ScheduleHistory = { ...currentData.scheduleHistory };
+    if (importedObj.scheduleHistory && typeof importedObj.scheduleHistory === 'object') {
+      for (const [weekKey, rawSchedule] of Object.entries(importedObj.scheduleHistory)) {
+        const fallbackSchedule = currentData.scheduleHistory[weekKey] || DEFAULT_SCHEDULE;
+        mergedHistory[weekKey] = remapSchedule(rawSchedule, fallbackSchedule);
+      }
+    } else if (Array.isArray(importedObj.schedule) && importedObj.schedule.length > 0) {
+      mergedHistory[currentData.activeWeekKey] = finalSchedule;
     }
 
     const normalizedData = normalizeAppData({
@@ -252,6 +284,10 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
       conductorOrder: mergedConductorOrder,
       bookmarks: mergedBookmarks,
       schedule: finalSchedule,
+      scheduleHistory: mergedHistory,
+      activeWeekKey: typeof importedObj.activeWeekKey === 'string'
+        ? importedObj.activeWeekKey
+        : currentData.activeWeekKey,
     });
 
     return {
@@ -268,7 +304,7 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
   }
 }
 
-function normalizeAppData(data: Partial<AppData>): AppData {
+export function normalizeAppData(data: Partial<AppData>): AppData {
   const members: Member[] = Array.isArray(data.members) ? data.members : [];
   
   // Normalize conductorOrder
@@ -307,10 +343,11 @@ function normalizeAppData(data: Partial<AppData>): AppData {
     ? bookmarks.r1
     : null;
 
-  // Normalize 7-day schedule
-  const schedule: DaySchedule[] = Array.from({ length: 7 }, (_, i) => {
+  const normalizeSchedule = (rawSchedule: unknown): DaySchedule[] => Array.from({ length: 7 }, (_, i) => {
     const dayNum = i + 1;
-    const existingDay = Array.isArray(data.schedule) ? data.schedule.find(s => s.dayNumber === dayNum) : null;
+    const existingDay = Array.isArray(rawSchedule)
+      ? rawSchedule.find((s): s is DaySchedule => !!s && typeof s === 'object' && s.dayNumber === dayNum)
+      : null;
     let conductorId = existingDay?.conductorId || null;
     let passengerId = existingDay?.passengerId || null;
 
@@ -324,7 +361,7 @@ function normalizeAppData(data: Partial<AppData>): AppData {
 
     // Validate assigned passenger
     if (passengerId) {
-      if (passengerId === '__PLACEHOLDER_ROLL_THE_DICE__' || passengerId === '__PLACEHOLDER_NOMINATION__') {
+      if (passengerId === PLACEHOLDER_ROLL_DICE || passengerId === PLACEHOLDER_NOMINATION) {
         // Keep valid placeholder
       } else {
         const p = memberMap.get(passengerId);
@@ -338,8 +375,30 @@ function normalizeAppData(data: Partial<AppData>): AppData {
       dayNumber: dayNum,
       conductorId,
       passengerId,
+      notes: typeof existingDay?.notes === 'string' ? existingDay.notes : '',
     };
   });
+
+  const legacySchedule = normalizeSchedule(data.schedule);
+  const rawHistory = data.scheduleHistory && typeof data.scheduleHistory === 'object'
+    ? data.scheduleHistory
+    : {};
+  const activeWeekKey = typeof data.activeWeekKey === 'string' && data.activeWeekKey
+    ? data.activeWeekKey
+    : getWeekKey(1);
+  const scheduleHistory: ScheduleHistory = {};
+
+  for (const [weekKey, rawSchedule] of Object.entries(rawHistory)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+      scheduleHistory[weekKey] = normalizeSchedule(rawSchedule);
+    }
+  }
+
+  if (!scheduleHistory[activeWeekKey]) {
+    scheduleHistory[activeWeekKey] = legacySchedule;
+  }
+
+  const schedule = scheduleHistory[activeWeekKey];
 
   return {
     members,
@@ -351,5 +410,7 @@ function normalizeAppData(data: Partial<AppData>): AppData {
       r1: validR1Bookmark,
     },
     schedule,
+    scheduleHistory,
+    activeWeekKey,
   };
 }

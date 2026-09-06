@@ -57,6 +57,30 @@ export function getMondayOfWeek(weekOffset: number = 1): Date {
   return monday;
 }
 
+export function getWeekKey(weekOffset: number = 1): string {
+  const monday = getMondayOfWeek(weekOffset);
+  const year = monday.getFullYear();
+  const month = String(monday.getMonth() + 1).padStart(2, '0');
+  const day = String(monday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getWeekOffsetFromKey(weekKey: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(weekKey);
+  if (!match) return null;
+
+  const targetMonday = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(targetMonday.getTime())) return null;
+  targetMonday.setHours(0, 0, 0, 0);
+
+  const currentMonday = getMondayOfWeek(0);
+  const differenceInDays = Math.round(
+    (targetMonday.getTime() - currentMonday.getTime()) / (24 * 60 * 60 * 1000)
+  );
+  if (differenceInDays % 7 !== 0) return null;
+  return differenceInDays / 7;
+}
+
 export function getDayDate(dayNumber: number, weekOffset: number = 1): Date {
   const monday = getMondayOfWeek(weekOffset);
   const targetDate = new Date(monday);
@@ -125,13 +149,18 @@ export interface DaySchedule {
   dayNumber: number; // 1 to 7
   conductorId: string | null;
   passengerId: string | null;
+  notes?: string;
 }
+
+export type ScheduleHistory = Record<string, DaySchedule[]>;
 
 export interface AppData {
   members: Member[];
   conductorOrder: string[]; // member IDs in custom order
   bookmarks: Bookmarks;
   schedule: DaySchedule[];
+  scheduleHistory: ScheduleHistory;
+  activeWeekKey: string;
 }
 
 export interface ElectronAPI {

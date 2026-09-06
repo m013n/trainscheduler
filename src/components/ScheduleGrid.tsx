@@ -8,7 +8,7 @@ import {
   getDayDateString,
   getWeekDateRange,
 } from '../types';
-import { Calendar, X, CheckCircle2, Dices, Award } from 'lucide-react';
+import { Calendar, X, CheckCircle2, Dices, Award, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ScheduleGridProps {
@@ -20,6 +20,7 @@ interface ScheduleGridProps {
   onRemoveSlot: (dayNumber: number, slotType: 'conductor' | 'passenger') => void;
   onClearDay: (dayNumber: number) => void;
   onClearAll: () => void;
+  onUpdateNotes: (dayNumber: number, notes: string) => void;
 }
 
 const RANK_BADGES: Record<string, string> = {
@@ -39,6 +40,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
   onRemoveSlot,
   onClearDay,
   onClearAll,
+  onUpdateNotes,
 }) => {
   const filledSlotsCount = schedule.reduce((acc, day) => {
     return acc + (day.conductorId ? 1 : 0) + (day.passengerId ? 1 : 0);
@@ -231,6 +233,30 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                     Empty slot
                   </div>
                 )}
+              </div>
+
+              {/* Note Field */}
+              <div
+                className="flex flex-col gap-1 mt-2 pt-2 border-t border-slate-800/80"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor={`day-note-${day.dayNumber}`}
+                    className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3 text-slate-400" />
+                    <span>Note</span>
+                  </label>
+                </div>
+                <input
+                  id={`day-note-${day.dayNumber}`}
+                  type="text"
+                  value={day.notes || ''}
+                  onChange={(e) => onUpdateNotes(day.dayNumber, e.target.value)}
+                  placeholder="Add note..."
+                  className="bg-slate-900/90 border border-slate-700 focus:border-indigo-500 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                />
               </div>
 
               {/* Selection indicator pill */}
