@@ -9,6 +9,7 @@ interface MemberListBoxesProps {
   selectedMember: Member | null;
   onSelectMember: (member: Member) => void;
   onToggleBookmark: (category: ListCategory, memberId: string) => void;
+  onShowHistory?: (member: Member, anchorRect: DOMRect) => void;
   onMoveConductor: (memberId: string, direction: 'up' | 'down') => void;
 }
 
@@ -19,6 +20,7 @@ export const MemberListBoxes: React.FC<MemberListBoxesProps> = ({
   selectedMember,
   onSelectMember,
   onToggleBookmark,
+  onShowHistory,
   onMoveConductor,
 }) => {
   // 1. Train Conductors (R4 + R5) sorted according to conductorOrder
@@ -75,6 +77,7 @@ export const MemberListBoxes: React.FC<MemberListBoxesProps> = ({
         bookmarkedMemberId={bookmarks.conductors || null}
         onSelectMember={onSelectMember}
         onToggleBookmark={onToggleBookmark}
+        onShowHistory={onShowHistory}
         onMoveUp={(id) => onMoveConductor(id, 'up')}
         onMoveDown={(id) => onMoveConductor(id, 'down')}
       />
@@ -89,6 +92,7 @@ export const MemberListBoxes: React.FC<MemberListBoxesProps> = ({
         bookmarkedMemberId={bookmarks.r3 || null}
         onSelectMember={onSelectMember}
         onToggleBookmark={onToggleBookmark}
+        onShowHistory={onShowHistory}
       />
 
       {/* 3. R2 Box */}
@@ -101,6 +105,7 @@ export const MemberListBoxes: React.FC<MemberListBoxesProps> = ({
         bookmarkedMemberId={bookmarks.r2 || null}
         onSelectMember={onSelectMember}
         onToggleBookmark={onToggleBookmark}
+        onShowHistory={onShowHistory}
       />
 
       {/* 4. R1 Box */}
@@ -113,6 +118,7 @@ export const MemberListBoxes: React.FC<MemberListBoxesProps> = ({
         bookmarkedMemberId={bookmarks.r1 || null}
         onSelectMember={onSelectMember}
         onToggleBookmark={onToggleBookmark}
+        onShowHistory={onShowHistory}
       />
     </div>
   );

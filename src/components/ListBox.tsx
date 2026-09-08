@@ -1,6 +1,6 @@
 import React from 'react';
 import { Member, ListCategory } from '../types';
-import { Bookmark, ArrowUp, ArrowDown, Shield, Users } from 'lucide-react';
+import { Bookmark, ArrowUp, ArrowDown, Shield, Users, History } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ListBoxProps {
@@ -12,6 +12,7 @@ interface ListBoxProps {
   bookmarkedMemberId: string | null;
   onSelectMember: (member: Member) => void;
   onToggleBookmark: (category: ListCategory, memberId: string) => void;
+  onShowHistory?: (member: Member, anchorRect: DOMRect) => void;
   onMoveUp?: (memberId: string) => void;
   onMoveDown?: (memberId: string) => void;
 }
@@ -71,6 +72,7 @@ export const ListBox: React.FC<ListBoxProps> = ({
   bookmarkedMemberId,
   onSelectMember,
   onToggleBookmark,
+  onShowHistory,
   onMoveUp,
   onMoveDown,
 }) => {
@@ -185,8 +187,22 @@ export const ListBox: React.FC<ListBoxProps> = ({
                   </span>
                 </div>
 
-                {/* Right: Bookmark Button & Active Bookmark Indicator */}
+                {/* Right: History Button, Bookmark Button & Active Bookmark Indicator */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {onShowHistory && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const row = e.currentTarget.closest('div.group');
+                        if (row) onShowHistory(member, row.getBoundingClientRect());
+                      }}
+                      title="View train history"
+                      className="p-1 rounded transition text-slate-500 opacity-0 group-hover:opacity-100 hover:text-indigo-300 hover:bg-slate-700"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {

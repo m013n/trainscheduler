@@ -17,6 +17,7 @@ import { MemberListBoxes } from './components/MemberListBoxes';
 import { ScheduleGrid } from './components/ScheduleGrid';
 import { ScheduleGenerator } from './components/ScheduleGenerator';
 import { PriorWeeksPreview } from './components/PriorWeeksPreview';
+import { MemberHistoryPopover } from './components/MemberHistoryPopover';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const SAMPLE_MEMBERS: Array<{ name: string; level: MemberLevel }> = [
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(1);
   const [weekOffset, setWeekOffset] = useState<number>(1); // Default to future / next week
   const [showPriorWeeks, setShowPriorWeeks] = useState(false);
+  const [historyPopup, setHistoryPopup] = useState<{ memberId: string; anchorRect: DOMRect } | null>(null);
 
   // Load initial data
   useEffect(() => {
@@ -186,32 +188,6 @@ export const App: React.FC = () => {
       }
       return updatedBookmarks;
     });
-
-    // Check if schedule slot assignments are invalidated by rank change
-    setScheduleHistory((history) => {
-      const updatedHistory: ScheduleHistory = {};
-      for (const [weekKey, weeklySchedule] of Object.entries(history)) {
-        updatedHistory[weekKey] = weeklySchedule.map((day) => {
-          let { conductorId, passengerId } = day;
-          if (conductorId === memberId && !willBeConductor) conductorId = null;
-          if (passengerId === memberId && willBeConductor) passengerId = null;
-          return { ...day, conductorId, passengerId };
-        });
-      }
-      return updatedHistory;
-    });
-    setSchedule((prev) =>
-      prev.map((day) => {
-        let { conductorId, passengerId } = day;
-        if (conductorId === memberId && !willBeConductor) {
-          conductorId = null;
-        }
-        if (passengerId === memberId && willBeConductor) {
-          passengerId = null;
-        }
-        return { ...day, conductorId, passengerId };
-      })
-    );
   };
 
   // Update Member Name
@@ -511,6 +487,7 @@ export const App: React.FC = () => {
           selectedMember={selectedMember}
           onSelectMember={(m) => setSelectedMemberId(m.id)}
           onToggleBookmark={handleToggleBookmark}
+          onShowHistory={(m, rect) => setHistoryPopup({ memberId: m.id, anchorRect: rect })}
           onMoveConductor={handleMoveConductor}
         />
 
@@ -554,6 +531,16 @@ export const App: React.FC = () => {
             weekOffset={weekOffset}
             scheduleHistory={scheduleHistory}
             membersMap={membersMap}
+          />
+        )}
+
+        {/* Member Train History Popover */}
+        {historyPopup && membersMap.get(historyPopup.memberId) && (
+          <MemberHistoryPopover
+            member={membersMap.get(historyPopup.memberId)!}
+            scheduleHistory={scheduleHistory}
+            anchorRect={historyPopup.anchorRect}
+            onClose={() => setHistoryPopup(null)}
           />
         )}
       </main>
