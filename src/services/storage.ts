@@ -351,24 +351,13 @@ export function normalizeAppData(data: Partial<AppData>): AppData {
     let conductorId = existingDay?.conductorId || null;
     let passengerId = existingDay?.passengerId || null;
 
-    // Validate assigned conductor
-    if (conductorId) {
-      const c = memberMap.get(conductorId);
-      if (!c || (c.level !== 'r4' && c.level !== 'r5')) {
-        conductorId = null;
-      }
+    // Clear only if the referenced member was deleted; rank changes don't invalidate a slot
+    if (conductorId && !memberMap.get(conductorId)) {
+      conductorId = null;
     }
 
-    // Validate assigned passenger
-    if (passengerId) {
-      if (passengerId === PLACEHOLDER_ROLL_DICE || passengerId === PLACEHOLDER_NOMINATION) {
-        // Keep valid placeholder
-      } else {
-        const p = memberMap.get(passengerId);
-        if (!p || (p.level !== 'r1' && p.level !== 'r2' && p.level !== 'r3')) {
-          passengerId = null;
-        }
-      }
+    if (passengerId && passengerId !== PLACEHOLDER_ROLL_DICE && passengerId !== PLACEHOLDER_NOMINATION && !memberMap.get(passengerId)) {
+      passengerId = null;
     }
 
     return {
