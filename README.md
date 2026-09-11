@@ -17,6 +17,8 @@ A desktop scheduler for organizing a seven-day alliance train. Assign one R4/R5 
 
 ## Screenshots
 
+Latest screen capture of the scheduler with a populated sample roster:
+
 ![Alliance Train Scheduler with a sample roster loaded](docs/screenshots/scheduler-populated.png)
 
 ## Requirements
