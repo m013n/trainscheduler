@@ -18,6 +18,7 @@ import { ScheduleGrid } from './components/ScheduleGrid';
 import { ScheduleGenerator } from './components/ScheduleGenerator';
 import { PriorWeeksPreview } from './components/PriorWeeksPreview';
 import { MemberHistoryPopover } from './components/MemberHistoryPopover';
+import { GoogleSyncModal } from './components/GoogleSyncModal';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const SAMPLE_MEMBERS: Array<{ name: string; level: MemberLevel }> = [
@@ -54,11 +55,13 @@ export const App: React.FC = () => {
   const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
   const [scheduleHistory, setScheduleHistory] = useState<ScheduleHistory>({});
   const [activeWeekKey, setActiveWeekKey] = useState(getWeekKey(1));
+  const [googleWebhookUrl, setGoogleWebhookUrl] = useState<string>('');
   
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(1);
   const [weekOffset, setWeekOffset] = useState<number>(1); // Default to future / next week
   const [showPriorWeeks, setShowPriorWeeks] = useState(false);
+  const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
   const [historyPopup, setHistoryPopup] = useState<{ memberId: string; anchorRect: DOMRect } | null>(null);
 
   // Load initial data
@@ -70,6 +73,7 @@ export const App: React.FC = () => {
       setSchedule(data.schedule);
       setScheduleHistory(data.scheduleHistory);
       setActiveWeekKey(data.activeWeekKey);
+      setGoogleWebhookUrl(data.googleWebhookUrl || '');
       setWeekOffset(getWeekOffsetFromKey(data.activeWeekKey) ?? 1);
       setDataLoaded(true);
     });
@@ -85,9 +89,10 @@ export const App: React.FC = () => {
       schedule,
       scheduleHistory,
       activeWeekKey,
+      googleWebhookUrl,
     };
     saveAppData(currentData);
-  }, [members, conductorOrder, bookmarks, schedule, scheduleHistory, activeWeekKey, dataLoaded]);
+  }, [members, conductorOrder, bookmarks, schedule, scheduleHistory, activeWeekKey, googleWebhookUrl, dataLoaded]);
 
   const updateActiveSchedule = (updater: (previous: DaySchedule[]) => DaySchedule[]) => {
     setSchedule((previous) => {
@@ -407,6 +412,7 @@ export const App: React.FC = () => {
       schedule,
       scheduleHistory,
       activeWeekKey,
+      googleWebhookUrl,
     };
     exportAppDataToFile(currentData);
   };
@@ -433,6 +439,7 @@ export const App: React.FC = () => {
           schedule,
           scheduleHistory,
           activeWeekKey,
+          googleWebhookUrl,
         };
 
         const result = mergeImportedData(currentData, parsed);
@@ -443,6 +450,7 @@ export const App: React.FC = () => {
           setSchedule(result.appData.schedule);
           setScheduleHistory(result.appData.scheduleHistory);
           setActiveWeekKey(result.appData.activeWeekKey);
+          setGoogleWebhookUrl(result.appData.googleWebhookUrl || '');
           setWeekOffset(getWeekOffsetFromKey(result.appData.activeWeekKey) ?? 1);
           alert(
             `Import successful!\n• ${result.stats?.added ?? 0} new member(s) added\n• ${result.stats?.updated ?? 0} member rank(s) updated\n• Total members: ${result.stats?.total ?? result.appData.members.length}`
@@ -457,6 +465,16 @@ export const App: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const currentAppData: AppData = useMemo(() => ({
+    members,
+    conductorOrder,
+    bookmarks,
+    schedule,
+    scheduleHistory,
+    activeWeekKey,
+    googleWebhookUrl,
+  }), [members, conductorOrder, bookmarks, schedule, scheduleHistory, activeWeekKey, googleWebhookUrl]);
+
   return (
     <div className="flex flex-col min-h-screen bg-[#090d16] text-slate-100">
       {/* App Header */}
@@ -465,6 +483,7 @@ export const App: React.FC = () => {
         onResetAllData={handleResetAllData}
         onExportData={handleExportData}
         onImportData={handleImportData}
+        onOpenGoogleSync={() => setShowGoogleSyncModal(true)}
         memberCount={members.length}
       />
 
@@ -543,6 +562,14 @@ export const App: React.FC = () => {
             onClose={() => setHistoryPopup(null)}
           />
         )}
+
+        {/* Google Sheets Sync & Export Modal */}
+        <GoogleSyncModal
+          isOpen={showGoogleSyncModal}
+          onClose={() => setShowGoogleSyncModal(false)}
+          appData={currentAppData}
+          onSaveWebhookUrl={setGoogleWebhookUrl}
+        />
       </main>
     </div>
   );

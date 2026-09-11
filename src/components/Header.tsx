@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
-import { Train, RefreshCw, Sparkles, Download, Upload } from 'lucide-react';
+import { Train, RefreshCw, Sparkles, Download, Upload, FileSpreadsheet } from 'lucide-react';
 
 interface HeaderProps {
   onLoadSampleData: () => void;
   onResetAllData: () => void;
   onExportData: () => void;
   onImportData: (file: File) => void;
+  onOpenGoogleSync: () => void;
   memberCount: number;
 }
 
@@ -14,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   onResetAllData,
   onExportData,
   onImportData,
+  onOpenGoogleSync,
   memberCount,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -88,6 +90,17 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Upload className="w-3.5 h-3.5 text-emerald-400" />
           <span>Import</span>
+        </button>
+
+        {/* Google Sheets Sync Button */}
+        <button
+          type="button"
+          onClick={onOpenGoogleSync}
+          className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 px-3 py-1.5 rounded-lg transition font-medium cursor-pointer"
+          title="Sync 4-week train history to Google Sheets or export CSV"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Google Sheets</span>
         </button>
 
         {/* Reset Button */}

@@ -31,6 +31,7 @@ export const DEFAULT_APP_DATA: AppData = {
     [getWeekKey(1)]: DEFAULT_SCHEDULE,
   },
   activeWeekKey: getWeekKey(1),
+  googleWebhookUrl: '',
 };
 
 export async function loadAppData(): Promise<AppData> {
@@ -288,6 +289,9 @@ export function mergeImportedData(currentData: AppData, rawImported: unknown): {
       activeWeekKey: typeof importedObj.activeWeekKey === 'string'
         ? importedObj.activeWeekKey
         : currentData.activeWeekKey,
+      googleWebhookUrl: typeof importedObj.googleWebhookUrl === 'string'
+        ? importedObj.googleWebhookUrl
+        : currentData.googleWebhookUrl,
     });
 
     return {
@@ -401,5 +405,6 @@ export function normalizeAppData(data: Partial<AppData>): AppData {
     schedule,
     scheduleHistory,
     activeWeekKey,
+    googleWebhookUrl: typeof data.googleWebhookUrl === 'string' ? data.googleWebhookUrl : '',
   };
 }

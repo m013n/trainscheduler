@@ -161,6 +161,7 @@ export interface AppData {
   schedule: DaySchedule[];
   scheduleHistory: ScheduleHistory;
   activeWeekKey: string;
+  googleWebhookUrl?: string;
 }
 
 export interface ElectronAPI {
