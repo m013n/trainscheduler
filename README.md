@@ -11,6 +11,8 @@ A desktop scheduler for organizing a seven-day alliance train. Assign one R4/R5 
 - Use `Roll the dice` and `Nomination` passenger placeholders
 - Browse independent schedules by week, with each week kept in history
 - Generate a formatted weekly schedule and copy it to the clipboard
+- Sync the last four weeks of train history to Google Sheets via Apps Script
+- Export a CSV-style Google Sheets payload or save data to JSON
 - Automatically save roster, bookmarks, and all weekly schedule history
 - Export and import data as JSON
 - Load a sample alliance roster for quick setup
@@ -72,6 +74,7 @@ npm run lint
 4. For a passenger slot, use `Roll the dice` or `Nomination` when a named member is not needed.
 5. Fill all seven conductor and passenger slots.
 6. Choose the schedule week, then click `Generate Train Schedule` to copy the formatted schedule.
+7. Open `Google Sheets` in the header to connect your Apps Script Web App and sync the last four weeks of history.
 
 R4 and R5 members can fill conductor slots. R1, R2, and R3 members can fill passenger slots.
 
