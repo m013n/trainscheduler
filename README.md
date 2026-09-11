@@ -70,7 +70,7 @@ npm run lint
 
 1. Add members and assign each member an alliance level.
 2. Select a member from the roster.
-3. Select a target day and click `All aboard!` to place the selected member in the appropriate slot.
+3. Select a target day and click the button labeled with that member, such as `Add Arthur Pendragon to Monday`.
 4. For a passenger slot, use `Roll the dice` or `Nomination` when a named member is not needed.
 5. Fill all seven conductor and passenger slots.
 6. Choose the schedule week, then click `Generate Train Schedule` to copy the formatted schedule.
